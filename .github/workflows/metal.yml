@@ -14,8 +14,32 @@ concurrency:
 jobs:
   test-metal-builds:
     name: test-executorch-metal-build
-    runs-on: macos-latest
+    runs-on: macos-m2-stable
     steps:
+      - name: Print machine info
+        run: |
+          uname -a
+          if [ $(uname -s) == Darwin ]; then
+            sw_vers
+            # Print RAM in GB
+            RAM_BYTES=$(sysctl -n hw.memsize)
+            RAM_GB=$(echo "scale=2; $RAM_BYTES/1024/1024/1024" | bc)
+            echo "Available RAM (GB): $RAM_GB"
+            sysctl machdep.cpu.brand_string
+            sysctl machdep.cpu.core_count
+            # Print number of GPU cores (Apple Silicon)
+            if command -v system_profiler &> /dev/null; then
+              GPU_CORES=$(system_profiler SPDisplaysDataType | awk '/Total Number of Cores/ {print $5; exit}')
+              if [ -z "$GPU_CORES" ]; then
+                # Fallback: try to parse "Core Count" from Apple GPU section
+                GPU_CORES=$(system_profiler SPDisplaysDataType | awk '/Core Count/ {print $3; exit}')
+              fi
+              echo "GPU Cores: ${GPU_CORES:-Unknown}"
+            else
+              echo "system_profiler not available, cannot determine GPU cores."
+            fi
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
@@ -25,7 +49,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Test ExecuTorch Metal build
         run: |
@@ -36,8 +60,32 @@ jobs:
 
   export-voxtral-metal-artifact:
     name: export-voxtral-metal-artifact
-    runs-on: macos-latest
+    runs-on: macos-m2-stable
     steps:
+      - name: Print machine info
+        run: |
+          uname -a
+          if [ $(uname -s) == Darwin ]; then
+            sw_vers
+            # Print RAM in GB
+            RAM_BYTES=$(sysctl -n hw.memsize)
+            RAM_GB=$(echo "scale=2; $RAM_BYTES/1024/1024/1024" | bc)
+            echo "Available RAM (GB): $RAM_GB"
+            sysctl machdep.cpu.brand_string
+            sysctl machdep.cpu.core_count
+            # Print number of GPU cores (Apple Silicon)
+            if command -v system_profiler &> /dev/null; then
+              GPU_CORES=$(system_profiler SPDisplaysDataType | awk '/Total Number of Cores/ {print $5; exit}')
+              if [ -z "$GPU_CORES" ]; then
+                # Fallback: try to parse "Core Count" from Apple GPU section
+                GPU_CORES=$(system_profiler SPDisplaysDataType | awk '/Core Count/ {print $3; exit}')
+              fi
+              echo "GPU Cores: ${GPU_CORES:-Unknown}"
+            else
+              echo "system_profiler not available, cannot determine GPU cores."
+            fi
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
@@ -47,13 +95,16 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Export Voxtral with Metal Backend
         env:
           EXECUTORCH_HF_TOKEN: ${{ secrets.EXECUTORCH_HF_TOKEN }}
         run: |
           set -eux
+
+          OPTIMUM_ET_VERSION=$(cat .ci/docker/ci_commit_pins/optimum-executorch.txt)
+          echo "Using optimum-executorch version: ${OPTIMUM_ET_VERSION}"
 
           echo "::group::Setup ExecuTorch"
           PYTHON_EXECUTABLE=python3 ./install_executorch.sh
@@ -104,8 +155,32 @@ jobs:
   test-voxtral-metal-e2e:
     name: test-voxtral-metal-e2e
     needs: export-voxtral-metal-artifact
-    runs-on: macos-latest
+    runs-on: macos-m2-stable
     steps:
+      - name: Print machine info
+        run: |
+          uname -a
+          if [ $(uname -s) == Darwin ]; then
+            sw_vers
+            # Print RAM in GB
+            RAM_BYTES=$(sysctl -n hw.memsize)
+            RAM_GB=$(echo "scale=2; $RAM_BYTES/1024/1024/1024" | bc)
+            echo "Available RAM (GB): $RAM_GB"
+            sysctl machdep.cpu.brand_string
+            sysctl machdep.cpu.core_count
+            # Print number of GPU cores (Apple Silicon)
+            if command -v system_profiler &> /dev/null; then
+              GPU_CORES=$(system_profiler SPDisplaysDataType | awk '/Total Number of Cores/ {print $5; exit}')
+              if [ -z "$GPU_CORES" ]; then
+                # Fallback: try to parse "Core Count" from Apple GPU section
+                GPU_CORES=$(system_profiler SPDisplaysDataType | awk '/Core Count/ {print $3; exit}')
+              fi
+              echo "GPU Cores: ${GPU_CORES:-Unknown}"
+            else
+              echo "system_profiler not available, cannot determine GPU cores."
+            fi
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
@@ -115,7 +190,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
